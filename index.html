@@ -1,9 +1,10 @@
+<!-- -- sdreamvip0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDREAM SERVICES | PREMIUM DEV HUB</title>
+    <title>SDREAM SERVICES | PREMIUM HUB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
@@ -11,103 +12,116 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
         body { background: #050505; color: #eee; font-family: 'JetBrains Mono', monospace; margin: 0; overflow-x: hidden; }
-        .bg-gif { position: fixed; inset: 0; z-index: -1; background: url('gif1.gif') center/cover no-repeat; filter: blur(45px) brightness(0.2); }
-        .glass { background: rgba(15,15,15,0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+        .bg-gif { position: fixed; inset: 0; z-index: -1; background: url('gif1.gif') center/cover no-repeat; filter: blur(50px) brightness(0.2); transform: scale(1.1); }
+        .glass { background: rgba(10,10,10,0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
+        .service-card { transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid rgba(255,255,255,0.03); }
+        .service-card:hover { border-color: #3b82f6; transform: translateY(-4px); background: rgba(59,130,246,0.05); }
         .hidden { display: none; }
-        .btn-glow:hover { box-shadow: 0 0 15px #3b82f6; transform: translateY(-2px); }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #333; }
-        .service-card { transition: 0.3s; border: 1px solid rgba(255,255,255,0.03); }
-        .service-card:hover { border-color: #3b82f6; background: rgba(59,130,246,0.05); }
+        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
     </style>
 </head>
 <body>
 <div class="bg-gif"></div>
 
-<!-- Auth -->
+<!-- Auth Screen -->
 <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="glass p-8 w-full max-w-md rounded-2xl shadow-2xl">
-        <h1 class="text-3xl font-bold text-blue-500 mb-2 tracking-tighter">SDREAM SERVICES</h1>
-        <p class="text-xs text-neutral-500 mb-6 font-bold uppercase tracking-widest">Dev Marketplace Access</p>
-        <div class="space-y-4">
-            <input id="auth-user" type="text" placeholder="Username" class="w-full bg-black/50 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 transition">
-            <input id="auth-pass" type="password" placeholder="Password" class="w-full bg-black/50 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 transition">
-            <button onclick="handleLogin()" class="w-full bg-blue-600 p-4 rounded-xl font-bold btn-glow transition uppercase text-sm">Sign In</button>
-            <button onclick="handleRegister()" class="w-full text-xs text-neutral-500 hover:text-white uppercase font-bold tracking-widest">Create Identity</button>
+    <div class="glass p-10 w-full max-w-md rounded-3xl shadow-2xl text-center">
+        <h1 class="text-4xl font-black italic text-blue-500 tracking-tighter mb-2">SDREAM</h1>
+        <p class="text-[10px] text-neutral-500 font-bold tracking-[0.3em] uppercase mb-8">Premium Node Login</p>
+        <div class="space-y-4 text-left">
+            <div>
+                <label class="text-[10px] text-neutral-600 font-bold ml-1 uppercase">Identity Tag</label>
+                <input id="auth-user" type="text" placeholder="username" class="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold">
+            </div>
+            <div>
+                <label class="text-[10px] text-neutral-600 font-bold ml-1 uppercase">Access Cipher</label>
+                <input id="auth-pass" type="password" placeholder="••••••••" class="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold">
+            </div>
+            <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg shadow-blue-600/20">Authorize Access</button>
+            <button onclick="handleRegister()" class="w-full text-[9px] text-neutral-600 hover:text-blue-400 font-bold uppercase tracking-widest transition-colors text-center">Create New Node Identity</button>
         </div>
-        <p id="auth-error" class="text-red-500 text-[10px] mt-4 text-center font-bold"></p>
+        <p id="auth-err" class="text-red-500 text-[10px] mt-6 font-bold h-2 uppercase"></p>
     </div>
 </div>
 
-<!-- Main -->
+<!-- App UI -->
 <div id="app" class="hidden min-h-screen flex flex-col">
-    <nav class="p-6 glass m-4 rounded-2xl flex justify-between items-center">
-        <div>
-            <span class="text-xl font-bold text-blue-500 tracking-tighter">SDREAM</span>
-            <span class="text-[10px] bg-blue-600/20 text-blue-400 px-2 py-1 rounded ml-2">VERIFIED</span>
+    <nav class="p-6 glass m-6 rounded-2xl flex justify-between items-center border border-white/5">
+        <div class="flex flex-col">
+            <span class="text-2xl font-black italic text-white tracking-tighter">SDREAM <span class="text-blue-600">SERVICES</span></span>
+            <span class="text-[8px] text-neutral-500 tracking-[0.3em] font-bold">STABLE_V4_SECURED</span>
         </div>
         <div class="flex items-center gap-6">
-            <span id="user-display" class="text-xs font-bold opacity-50"></span>
-            <button onclick="location.reload()" class="text-xs text-red-500 font-bold uppercase">Logout</button>
+            <div class="text-right">
+                <span id="user-display" class="text-xs font-bold text-blue-500 block"></span>
+                <span class="text-[8px] text-green-500 font-bold">CONNECTED_ENCRYPTED</span>
+            </div>
+            <button onclick="location.reload()" class="bg-red-500/10 p-2 rounded-lg hover:bg-red-500 transition-all">
+                <svg class="w-4 h-4 text-red-500 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </button>
         </div>
     </nav>
 
-    <main class="p-4 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="services">
-        <!-- Servisler -->
-    </main>
+    <main class="px-6 pb-20 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="grid"></main>
 
-    <!-- Chat -->
-    <div id="chat-box" class="fixed bottom-6 right-6 w-80 md:w-96 glass h-[500px] flex flex-col hidden rounded-2xl shadow-2xl overflow-hidden border-blue-500/20">
-        <div class="p-4 bg-blue-600 flex justify-between items-center">
-            <span class="text-xs font-bold tracking-widest">SUPPORT_CHANNEL.EXE</span>
+    <!-- Support Chat -->
+    <div id="chat-box" class="fixed bottom-6 right-6 w-80 md:w-96 glass h-[550px] flex flex-col hidden rounded-2xl border border-blue-500/30 shadow-2xl overflow-hidden z-50">
+        <div class="p-4 bg-blue-600 flex justify-between items-center text-white">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span class="text-[10px] font-bold tracking-widest" id="chat-title">SECURE_CHANNEL</span>
+            </div>
             <button onclick="closeChat()">✕</button>
         </div>
-        <div id="chat-msgs" class="flex-grow p-4 overflow-y-auto space-y-4 text-xs bg-black/40"></div>
-        <div class="p-4 border-t border-white/5 flex gap-2">
-            <input id="chat-input" type="text" placeholder="Type message..." class="flex-grow bg-black/50 border border-white/10 p-3 rounded-lg outline-none text-xs">
-            <button onclick="sendMsg()" class="bg-blue-600 px-4 rounded-lg">></button>
+        <div id="chat-msgs" class="flex-grow p-5 overflow-y-auto space-y-4 text-[11px] bg-black/40"></div>
+        <div class="p-4 border-t border-white/5 bg-black/20">
+            <div class="flex gap-2">
+                <input id="chat-in" type="text" placeholder="Type command..." class="flex-grow bg-black/60 border border-white/10 p-3 rounded-xl outline-none text-[11px] focus:border-blue-500">
+                <button onclick="sendMsg()" class="bg-blue-600 px-4 rounded-xl hover:bg-blue-700 transition-all font-bold">></button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
--- sdreamvip0
+// -- sdreamvip0
 const firebaseConfig = JSON.parse(__firebase_config);
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'sdream-main';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'sdream-main-app';
 
 let user = null;
 let activeChat = null;
 
-const DATA = [
-    { n: 'Bot Development', img: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400', p: [{t:'Entry', v:'$15'}, {t:'Mid', v:'$45'}, {t:'High-End', v:'$120+'}] },
-    { n: 'Roblox Dev', img: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=400', p: [{t:'Entry', v:'$20'}, {t:'Mid', v:'$75'}, {t:'High-End', v:'$200+'}] },
-    { n: 'Video Editing', img: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400', p: [{t:'Shorts', v:'$10'}, {t:'Mid', v:'$40'}, {t:'High-End', v:'$100+'}] },
-    { n: 'GFX Design', img: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400', p: [{t:'Entry', v:'$15'}, {t:'Mid', v:'$35'}, {t:'High-End', v:'$80'}] },
-    { n: 'Web Design', img: 'https://images.unsplash.com/photo-1547658719-da2b51169166?w=400', p: [{t:'Entry', v:'$50'}, {t:'Mid', v:'$150'}, {t:'High-End', v:'$400+'}] }
+const SERVICES = [
+    { n: 'Bot Development', img: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400', p: [{t:'Starter Node', v:'$15'}, {t:'Advanced Script', v:'$45'}, {t:'Enterprise AI', v:'$120+'}] },
+    { n: 'Roblox Dev', img: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=400', p: [{t:'Asset Creation', v:'$20'}, {t:'Game System', v:'$75'}, {t:'Full Environment', v:'$200+'}] },
+    { n: 'Video Editing', img: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400', p: [{t:'Short Motion', v:'$10'}, {t:'Dynamic Cinematic', v:'$40'}, {t:'Commercial Grade', v:'$100+'}] },
+    { n: 'GFX Design', img: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400', p: [{t:'Identity Logo', v:'$15'}, {t:'Social Pack', v:'$35'}, {t:'Full Branding', v:'$80'}] },
+    { n: 'Web Solutions', img: 'https://images.unsplash.com/photo-1547658719-da2b51169166?w=400', p: [{t:'Single Page', v:'$50'}, {t:'Dynamic Web', v:'$150'}, {t:'SaaS Protocol', v:'$400+'}] }
 ];
 
 async function handleRegister() {
     const u = document.getElementById('auth-user').value.trim().toLowerCase();
     const p = document.getElementById('auth-pass').value;
-    const e = document.getElementById('auth-error');
-    if(u.length < 3) return e.innerText = "NAME_TOO_SHORT";
+    const e = document.getElementById('auth-err');
+    if(u.length < 3 || p.length < 6) return e.innerText = "TAG_TOO_SHORT_OR_WEAK";
     
     const doc = await db.doc(`/artifacts/${appId}/public/data/users/${u}`).get();
-    if(doc.exists()) return e.innerText = "ALREADY_TAKEN";
+    if(doc.exists()) return e.innerText = "IDENTITY_TAG_ALREADY_RESERVED";
 
-    await db.doc(`/artifacts/${appId}/public/data/users/${u}`).set({ u, p, r: u === 'sdreamvip' ? 'admin' : 'user' });
+    await db.doc(`/artifacts/${appId}/public/data/users/${u}`).set({ u, p, role: u === 'sdreamvip' ? 'admin' : 'user' });
     init(u);
 }
 
 async function handleLogin() {
     const u = document.getElementById('auth-user').value.trim().toLowerCase();
     const p = document.getElementById('auth-pass').value;
-    const e = document.getElementById('auth-error');
+    const e = document.getElementById('auth-err');
 
     const doc = await db.doc(`/artifacts/${appId}/public/data/users/${u}`).get();
-    if(!doc.exists() || doc.data().p !== p) return e.innerText = "INVALID_CREDENTIALS";
+    if(!doc.exists() || doc.data().p !== p) return e.innerText = "ACCESS_DENIED_INVALID_AUTH";
     init(u);
 }
 
@@ -120,15 +134,19 @@ function init(u) {
 }
 
 function loadGrid() {
-    document.getElementById('services').innerHTML = DATA.map(s => `
-        <div class="glass p-4 rounded-2xl service-card">
-            <img src="${s.img}" class="w-full h-32 object-cover rounded-xl opacity-50 mb-4">
-            <h3 class="font-bold text-sm mb-4 border-l-2 border-blue-500 pl-2">${s.n.toUpperCase()}</h3>
-            <div class="space-y-2">
+    const grid = document.getElementById('grid');
+    grid.innerHTML = SERVICES.map(s => `
+        <div class="glass p-6 rounded-3xl service-card group">
+            <div class="h-40 overflow-hidden rounded-2xl mb-6 relative">
+                <img src="${s.img}" class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-all duration-500 group-hover:scale-110">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] to-transparent"></div>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-6 border-l-4 border-blue-600 pl-4 tracking-tighter">${s.n.toUpperCase()}</h3>
+            <div class="space-y-3">
                 ${s.p.map(o => `
-                    <button onclick="order('${s.n}', '${o.t}', '${o.v}')" class="w-full flex justify-between p-3 bg-white/5 rounded-lg hover:bg-blue-600/20 transition text-[10px] font-bold">
-                        <span>${o.t}</span>
-                        <span class="text-blue-500">${o.v}</span>
+                    <button onclick="order('${s.n}', '${o.t}', '${o.v}')" class="w-full flex justify-between items-center p-4 bg-white/5 rounded-2xl hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/40 transition-all">
+                        <span class="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">${o.t}</span>
+                        <span class="text-blue-500 font-black text-xs">${o.v}</span>
                     </button>
                 `).join('')}
             </div>
@@ -141,38 +159,54 @@ async function order(service, tier, price) {
     document.getElementById('chat-box').classList.remove('hidden');
     
     if (user !== 'sdreamvip') {
-        const txt = `[ORDER] User @${user} wants ${service} (${tier}) for ${price}.`;
-        await db.collection(`/artifacts/${appId}/public/data/chats/${user}/msgs`).add({ s: 'System', t: txt, time: Date.now() });
+        const txt = `[SYSTEM_ENQUIRY] User @${user} is requesting ${service} [Tier: ${tier}] for ${price}. Initiating admin bridge...`;
+        await db.collection(`/artifacts/${appId}/public/data/chats/${user}/msgs`).add({ s: 'SYSTEM', t: txt, time: Date.now() });
     }
     listen(activeChat || user);
 }
 
 async function sendMsg() {
-    const i = document.getElementById('chat-input');
-    if(!i.value || !activeChat) return;
-    await db.collection(`/artifacts/${appId}/public/data/chats/${activeChat}/msgs`).add({ s: user, t: i.value, time: Date.now() });
-    i.value = '';
+    const input = document.getElementById('chat-in');
+    const txt = input.value.trim();
+    if(!txt || !activeChat) return;
+
+    await db.collection(`/artifacts/${appId}/public/data/chats/${activeChat}/msgs`).add({
+        s: user,
+        t: txt,
+        time: Date.now()
+    });
+    input.value = '';
 }
 
-function listen(c) {
-    activeChat = c;
-    db.collection(`/artifacts/${appId}/public/data/chats/${c}/msgs`).orderBy('time').onSnapshot(s => {
-        document.getElementById('chat-msgs').innerHTML = s.docs.map(d => {
-            const m = d.data();
-            const isMe = m.s === user;
-            return `<div class="${isMe ? 'text-right' : 'text-left'}">
-                <div class="text-[8px] text-neutral-600 mb-1 uppercase">${m.s}</div>
-                <div class="inline-block p-2 rounded-lg ${isMe ? 'bg-blue-600' : 'bg-neutral-800'}">${m.text || m.t}</div>
-            </div>`;
-        }).join('');
-        const div = document.getElementById('chat-msgs');
-        div.scrollTop = div.scrollHeight;
+function listen(targetChat) {
+    activeChat = targetChat;
+    document.getElementById('chat-title').innerText = `SECURE_CHANNEL: ${targetChat.toUpperCase()}`;
+    
+    db.collection(`/artifacts/${appId}/public/data/chats/${targetChat}/msgs`).orderBy('time').onSnapshot(snap => {
+        const msgs = snap.docs.map(d => d.data());
+        const container = document.getElementById('chat-msgs');
+        container.innerHTML = msgs.map(m => `
+            <div class="${m.s === user ? 'text-right' : 'text-left'}">
+                <div class="text-[8px] text-neutral-600 mb-1 uppercase tracking-widest font-bold">${m.s}</div>
+                <div class="inline-block p-3 rounded-2xl ${m.s === user ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-neutral-300'} max-w-[90%] break-words">
+                    ${m.t}
+                </div>
+            </div>
+        `).join('');
+        container.scrollTop = container.scrollHeight;
     });
 }
 
 function closeChat() { document.getElementById('chat-box').classList.add('hidden'); }
 
-firebase.auth().signInAnonymously();
+// Init Auth
+(async () => {
+    try {
+        await firebase.auth().signInAnonymously();
+    } catch(err) {
+        console.error("Auth Failure:", err);
+    }
+})();
 </script>
 </body>
 </html>
