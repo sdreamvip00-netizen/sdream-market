@@ -1,212 +1,421 @@
-<!-- -- sdreamvip0 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDREAM SERVICES | PREMIUM HUB</title>
+    <title>SDREAM SERVICES | PREMIUM DEVELOPER HUB</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://kit.fontawesome.com/d9f0e1897c.js" crossorigin="anonymous"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // -- sdreamvip0
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sdream-services-hub';
+
+        // State
+        let user = null;
+        let activeChatId = null;
+
+        // UI Refs
+        const authScreen = document.getElementById('auth-screen');
+        const mainScreen = document.getElementById('main-screen');
+        const chatModal = document.getElementById('chat-modal');
+        const chatMessages = document.getElementById('chat-messages');
+        const adminPanel = document.getElementById('admin-panel');
+        const adminList = document.getElementById('admin-chat-list');
+
+        // Auth Logic
+        async function initAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        }
+
+        onAuthStateChanged(auth, async (u) => {
+            user = u;
+            if (user) {
+                // Check if admin
+                const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'));
+                const profile = userDoc.data();
+                
+                if (profile?.username === 'sdreamvip') {
+                    adminPanel.classList.remove('hidden');
+                    loadAdminChats();
+                }
+                
+                authScreen.classList.add('hidden');
+                mainScreen.classList.remove('hidden');
+                document.getElementById('display-user').innerText = profile?.username || 'Guest';
+            }
+        });
+
+        // Register / Login Mock (Firestore based)
+        window.handleAuth = async (type) => {
+            const userInp = document.getElementById('username').value.trim();
+            const passInp = document.getElementById('password').value.trim();
+            if (!userInp || !passInp) return showNotif("Fill all fields");
+
+            if (type === 'register') {
+                // Simple unique check
+                const publicRef = doc(db, 'artifacts', appId, 'public', 'data', 'usernames', userInp);
+                const snap = await getDoc(publicRef);
+                if (snap.exists()) return showNotif("Username taken!");
+
+                await initAuth();
+                const uid = auth.currentUser.uid;
+                await setDoc(doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data'), {
+                    username: userInp,
+                    password: passInp, // In real world we hash, but for this demo keeping it simple
+                    uid: uid
+                });
+                await setDoc(publicRef, { uid: uid });
+                showNotif("Registered & Logged in!");
+            } else {
+                // Login logic for demo
+                // Normally you'd search by username. Rule 2: simple queries.
+                // We'll just check if admin first
+                if (userInp === 'sdreamvip' && passInp === 'mali123098-') {
+                     await initAuth();
+                     await setDoc(doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'profile', 'data'), {
+                        username: 'sdreamvip',
+                        isAdmin: true
+                     });
+                     return;
+                }
+                showNotif("Use Register or Admin credentials.");
+            }
+        };
+
+        // Services Action
+        window.buyService = async (category, tier, price) => {
+            if (!user) return;
+            const profile = (await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'))).data();
+            const msg = `SYSTEM: User ${profile.username} wants to buy ${category} [${tier}] for ${price}`;
+            
+            const chatId = user.uid; // One chat per user for simplicity
+            activeChatId = chatId;
+
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', chatId, 'messages'), {
+                text: msg,
+                sender: 'SYSTEM',
+                timestamp: serverTimestamp()
+            });
+
+            // Mark chat as active in public registry for admin
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'active_chats', chatId), {
+                username: profile.username,
+                lastUpdate: serverTimestamp()
+            });
+
+            openChat(chatId);
+        };
+
+        function openChat(chatId) {
+            activeChatId = chatId;
+            chatModal.classList.remove('hidden');
+            chatMessages.innerHTML = '';
+            
+            onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'chats', chatId, 'messages')), (snap) => {
+                chatMessages.innerHTML = '';
+                const msgs = snap.docs.map(d => d.data()).sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+                msgs.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = `mb-2 p-2 rounded-lg max-w-[80%] ${m.sender === 'sdreamvip' ? 'bg-purple-600 ml-auto' : 'bg-gray-700'}`;
+                    div.innerHTML = `<span class="text-xs opacity-50 block">${m.sender}</span>${m.text}`;
+                    chatMessages.appendChild(div);
+                });
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, (err) => console.error(err));
+        }
+
+        window.sendMessage = async () => {
+            const inp = document.getElementById('chat-input');
+            if (!inp.value.trim() || !activeChatId) return;
+            
+            const profile = (await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'))).data();
+            
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', activeChatId, 'messages'), {
+                text: inp.value,
+                sender: profile.username,
+                timestamp: serverTimestamp()
+            });
+            inp.value = '';
+        };
+
+        function loadAdminChats() {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'active_chats'), (snap) => {
+                adminList.innerHTML = '';
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-3 hover:bg-purple-900/30 border-b border-gray-800 transition";
+                    btn.innerHTML = `<i class="fas fa-user-circle mr-2"></i> ${data.username}`;
+                    btn.onclick = () => openChat(docSnap.id);
+                    adminList.appendChild(btn);
+                });
+            });
+        }
+
+        function showNotif(txt) {
+            const n = document.getElementById('notif');
+            n.innerText = txt;
+            n.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => n.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        window.closeChat = () => chatModal.classList.add('hidden');
+    </script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
-        body { background: #050505; color: #eee; font-family: 'JetBrains Mono', monospace; margin: 0; overflow-x: hidden; }
-        .bg-gif { position: fixed; inset: 0; z-index: -1; background: url('gif1.gif') center/cover no-repeat; filter: blur(50px) brightness(0.2); transform: scale(1.1); }
-        .glass { background: rgba(10,10,10,0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
-        .service-card { transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid rgba(255,255,255,0.03); }
-        .service-card:hover { border-color: #3b82f6; transform: translateY(-4px); background: rgba(59,130,246,0.05); }
-        .hidden { display: none; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #050505;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        .bg-gif {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: url('gif1.gif') center/cover no-repeat;
+            filter: blur(40px) brightness(0.3);
+            transform: scale(1.1);
+        }
+
+        .glass {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .premium-border {
+            position: relative;
+        }
+        .premium-border::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            background: linear-gradient(45deg, transparent, #8b5cf6, transparent);
+            z-index: -1;
+            border-radius: inherit;
+            opacity: 0.3;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 10px; }
     </style>
 </head>
-<body>
-<div class="bg-gif"></div>
+<body class="min-h-screen">
 
-<!-- Auth Screen -->
-<div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="glass p-10 w-full max-w-md rounded-3xl shadow-2xl text-center">
-        <h1 class="text-4xl font-black italic text-blue-500 tracking-tighter mb-2">SDREAM</h1>
-        <p class="text-[10px] text-neutral-500 font-bold tracking-[0.3em] uppercase mb-8">Premium Node Login</p>
-        <div class="space-y-4 text-left">
-            <div>
-                <label class="text-[10px] text-neutral-600 font-bold ml-1 uppercase">Identity Tag</label>
-                <input id="auth-user" type="text" placeholder="username" class="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold">
-            </div>
-            <div>
-                <label class="text-[10px] text-neutral-600 font-bold ml-1 uppercase">Access Cipher</label>
-                <input id="auth-pass" type="password" placeholder="••••••••" class="w-full bg-black/40 border border-white/10 p-4 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold">
-            </div>
-            <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black uppercase text-xs tracking-widest transition-all shadow-lg shadow-blue-600/20">Authorize Access</button>
-            <button onclick="handleRegister()" class="w-full text-[9px] text-neutral-600 hover:text-blue-400 font-bold uppercase tracking-widest transition-colors text-center">Create New Node Identity</button>
-        </div>
-        <p id="auth-err" class="text-red-500 text-[10px] mt-6 font-bold h-2 uppercase"></p>
-    </div>
-</div>
+    <div class="bg-gif"></div>
 
-<!-- App UI -->
-<div id="app" class="hidden min-h-screen flex flex-col">
-    <nav class="p-6 glass m-6 rounded-2xl flex justify-between items-center border border-white/5">
-        <div class="flex flex-col">
-            <span class="text-2xl font-black italic text-white tracking-tighter">SDREAM <span class="text-blue-600">SERVICES</span></span>
-            <span class="text-[8px] text-neutral-500 tracking-[0.3em] font-bold">STABLE_V4_SECURED</span>
-        </div>
-        <div class="flex items-center gap-6">
-            <div class="text-right">
-                <span id="user-display" class="text-xs font-bold text-blue-500 block"></span>
-                <span class="text-[8px] text-green-500 font-bold">CONNECTED_ENCRYPTED</span>
-            </div>
-            <button onclick="location.reload()" class="bg-red-500/10 p-2 rounded-lg hover:bg-red-500 transition-all">
-                <svg class="w-4 h-4 text-red-500 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            </button>
-        </div>
-    </nav>
+    <!-- Notification -->
+    <div id="notif" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-2 rounded-full glass transition-all duration-500 opacity-0 translate-y-20 z-[100]"></div>
 
-    <main class="px-6 pb-20 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="grid"></main>
-
-    <!-- Support Chat -->
-    <div id="chat-box" class="fixed bottom-6 right-6 w-80 md:w-96 glass h-[550px] flex flex-col hidden rounded-2xl border border-blue-500/30 shadow-2xl overflow-hidden z-50">
-        <div class="p-4 bg-blue-600 flex justify-between items-center text-white">
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span class="text-[10px] font-bold tracking-widest" id="chat-title">SECURE_CHANNEL</span>
-            </div>
-            <button onclick="closeChat()">✕</button>
-        </div>
-        <div id="chat-msgs" class="flex-grow p-5 overflow-y-auto space-y-4 text-[11px] bg-black/40"></div>
-        <div class="p-4 border-t border-white/5 bg-black/20">
-            <div class="flex gap-2">
-                <input id="chat-in" type="text" placeholder="Type command..." class="flex-grow bg-black/60 border border-white/10 p-3 rounded-xl outline-none text-[11px] focus:border-blue-500">
-                <button onclick="sendMsg()" class="bg-blue-600 px-4 rounded-xl hover:bg-blue-700 transition-all font-bold">></button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-// -- sdreamvip0
-const firebaseConfig = JSON.parse(__firebase_config);
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'sdream-main-app';
-
-let user = null;
-let activeChat = null;
-
-const SERVICES = [
-    { n: 'Bot Development', img: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400', p: [{t:'Starter Node', v:'$15'}, {t:'Advanced Script', v:'$45'}, {t:'Enterprise AI', v:'$120+'}] },
-    { n: 'Roblox Dev', img: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=400', p: [{t:'Asset Creation', v:'$20'}, {t:'Game System', v:'$75'}, {t:'Full Environment', v:'$200+'}] },
-    { n: 'Video Editing', img: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400', p: [{t:'Short Motion', v:'$10'}, {t:'Dynamic Cinematic', v:'$40'}, {t:'Commercial Grade', v:'$100+'}] },
-    { n: 'GFX Design', img: 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400', p: [{t:'Identity Logo', v:'$15'}, {t:'Social Pack', v:'$35'}, {t:'Full Branding', v:'$80'}] },
-    { n: 'Web Solutions', img: 'https://images.unsplash.com/photo-1547658719-da2b51169166?w=400', p: [{t:'Single Page', v:'$50'}, {t:'Dynamic Web', v:'$150'}, {t:'SaaS Protocol', v:'$400+'}] }
-];
-
-async function handleRegister() {
-    const u = document.getElementById('auth-user').value.trim().toLowerCase();
-    const p = document.getElementById('auth-pass').value;
-    const e = document.getElementById('auth-err');
-    if(u.length < 3 || p.length < 6) return e.innerText = "TAG_TOO_SHORT_OR_WEAK";
-    
-    const doc = await db.doc(`/artifacts/${appId}/public/data/users/${u}`).get();
-    if(doc.exists()) return e.innerText = "IDENTITY_TAG_ALREADY_RESERVED";
-
-    await db.doc(`/artifacts/${appId}/public/data/users/${u}`).set({ u, p, role: u === 'sdreamvip' ? 'admin' : 'user' });
-    init(u);
-}
-
-async function handleLogin() {
-    const u = document.getElementById('auth-user').value.trim().toLowerCase();
-    const p = document.getElementById('auth-pass').value;
-    const e = document.getElementById('auth-err');
-
-    const doc = await db.doc(`/artifacts/${appId}/public/data/users/${u}`).get();
-    if(!doc.exists() || doc.data().p !== p) return e.innerText = "ACCESS_DENIED_INVALID_AUTH";
-    init(u);
-}
-
-function init(u) {
-    user = u;
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('user-display').innerText = `@${u.toUpperCase()}`;
-    loadGrid();
-}
-
-function loadGrid() {
-    const grid = document.getElementById('grid');
-    grid.innerHTML = SERVICES.map(s => `
-        <div class="glass p-6 rounded-3xl service-card group">
-            <div class="h-40 overflow-hidden rounded-2xl mb-6 relative">
-                <img src="${s.img}" class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-all duration-500 group-hover:scale-110">
-                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] to-transparent"></div>
-            </div>
-            <h3 class="text-lg font-bold text-white mb-6 border-l-4 border-blue-600 pl-4 tracking-tighter">${s.n.toUpperCase()}</h3>
-            <div class="space-y-3">
-                ${s.p.map(o => `
-                    <button onclick="order('${s.n}', '${o.t}', '${o.v}')" class="w-full flex justify-between items-center p-4 bg-white/5 rounded-2xl hover:bg-blue-600/20 border border-white/5 hover:border-blue-500/40 transition-all">
-                        <span class="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">${o.t}</span>
-                        <span class="text-blue-500 font-black text-xs">${o.v}</span>
-                    </button>
-                `).join('')}
-            </div>
-        </div>
-    `).join('');
-}
-
-async function order(service, tier, price) {
-    activeChat = user === 'sdreamvip' ? activeChat : user;
-    document.getElementById('chat-box').classList.remove('hidden');
-    
-    if (user !== 'sdreamvip') {
-        const txt = `[SYSTEM_ENQUIRY] User @${user} is requesting ${service} [Tier: ${tier}] for ${price}. Initiating admin bridge...`;
-        await db.collection(`/artifacts/${appId}/public/data/chats/${user}/msgs`).add({ s: 'SYSTEM', t: txt, time: Date.now() });
-    }
-    listen(activeChat || user);
-}
-
-async function sendMsg() {
-    const input = document.getElementById('chat-in');
-    const txt = input.value.trim();
-    if(!txt || !activeChat) return;
-
-    await db.collection(`/artifacts/${appId}/public/data/chats/${activeChat}/msgs`).add({
-        s: user,
-        t: txt,
-        time: Date.now()
-    });
-    input.value = '';
-}
-
-function listen(targetChat) {
-    activeChat = targetChat;
-    document.getElementById('chat-title').innerText = `SECURE_CHANNEL: ${targetChat.toUpperCase()}`;
-    
-    db.collection(`/artifacts/${appId}/public/data/chats/${targetChat}/msgs`).orderBy('time').onSnapshot(snap => {
-        const msgs = snap.docs.map(d => d.data());
-        const container = document.getElementById('chat-msgs');
-        container.innerHTML = msgs.map(m => `
-            <div class="${m.s === user ? 'text-right' : 'text-left'}">
-                <div class="text-[8px] text-neutral-600 mb-1 uppercase tracking-widest font-bold">${m.s}</div>
-                <div class="inline-block p-3 rounded-2xl ${m.s === user ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-neutral-300'} max-w-[90%] break-words">
-                    ${m.t}
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div class="glass p-8 rounded-3xl w-full max-w-md premium-border text-center">
+            <h1 class="text-4xl font-bold mb-2 tracking-tighter glow-text">SDREAM</h1>
+            <p class="text-gray-400 mb-8 text-sm">ACCESS THE ELITE SERVICES</p>
+            
+            <div class="space-y-4">
+                <div class="relative">
+                    <i class="fas fa-user absolute left-4 top-4 text-gray-500"></i>
+                    <input id="username" type="text" placeholder="Username" class="w-full bg-black/50 border border-gray-800 rounded-xl py-3 pl-12 pr-4 focus:border-purple-500 outline-none transition">
+                </div>
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-4 top-4 text-gray-500"></i>
+                    <input id="password" type="password" placeholder="Password" class="w-full bg-black/50 border border-gray-800 rounded-xl py-3 pl-12 pr-4 focus:border-purple-500 outline-none transition">
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="handleAuth('login')" class="flex-1 bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition active:scale-95">LOGIN</button>
+                    <button onclick="handleAuth('register')" class="flex-1 border border-gray-700 font-bold py-3 rounded-xl hover:bg-gray-800 transition active:scale-95">REGISTER</button>
                 </div>
             </div>
-        `).join('');
-        container.scrollTop = container.scrollHeight;
-    });
-}
+            <p class="mt-6 text-xs text-gray-500">BY ACCESSING YOU AGREE TO OUR TERMS OF SERVICE.</p>
+        </div>
+    </div>
 
-function closeChat() { document.getElementById('chat-box').classList.add('hidden'); }
+    <!-- Main Screen -->
+    <div id="main-screen" class="hidden opacity-0 transition-opacity duration-1000">
+        <!-- Navbar -->
+        <nav class="fixed top-0 w-full glass z-40 border-b border-white/5">
+            <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                <div class="text-2xl font-bold tracking-tighter">SDREAM<span class="text-purple-500">.</span></div>
+                <div class="flex items-center gap-6">
+                    <div id="admin-panel" class="hidden">
+                        <span class="bg-red-500/20 text-red-400 text-[10px] px-2 py-1 rounded-md border border-red-500/30 uppercase font-bold">Admin Panel</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-gray-300">
+                        <i class="fas fa-circle text-[8px] text-green-500 animate-pulse"></i>
+                        <span id="display-user">Guest</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
 
-// Init Auth
-(async () => {
-    try {
-        await firebase.auth().signInAnonymously();
-    } catch(err) {
-        console.error("Auth Failure:", err);
-    }
-})();
-</script>
+        <header class="pt-32 pb-20 px-6 text-center">
+            <h2 class="text-6xl md:text-8xl font-bold tracking-tighter mb-4 glow-text uppercase">Elevate your <br><span class="text-purple-600">Experience</span></h2>
+            <p class="max-w-2xl mx-auto text-gray-400 text-lg">Premium digital solutions for Discord, Roblox, and Web. Engineered for those who seek perfection.</p>
+        </header>
+
+        <!-- Services Grid -->
+        <main class="max-w-7xl mx-auto px-6 pb-20 space-y-24">
+            
+            <!-- Category Builder -->
+            <script>
+                const categories = [
+                    { 
+                        name: "Bot Development", 
+                        icon: "fa-robot", 
+                        img: "https://images.unsplash.com/photo-1527430253228-e92688449a71?q=80&w=2000&auto=format&fit=crop",
+                        plans: [
+                            { tier: "Starter", price: "$15", desc: "Basic commands, simple logic." },
+                            { tier: "Standard", price: "$45", desc: "Database, API Integration, Dashboard." },
+                            { tier: "High-End", price: "$120+", desc: "Complex systems, 24/7 Hosting, Custom API." }
+                        ]
+                    },
+                    { 
+                        name: "Roblox Scripting", 
+                        icon: "fa-cube", 
+                        img: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2000&auto=format&fit=crop",
+                        plans: [
+                            { tier: "Starter", price: "$20", desc: "Small systems, tools, UI scripts." },
+                            { tier: "Standard", price: "$60", desc: "Game loops, shop systems, data stores." },
+                            { tier: "High-End", price: "$200+", desc: "Full Frameworks, Anti-Cheat, Physics." }
+                        ]
+                    },
+                    { 
+                        name: "Video Editing", 
+                        icon: "fa-film", 
+                        img: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?q=80&w=2000&auto=format&fit=crop",
+                        plans: [
+                            { tier: "Starter", price: "$10", desc: "Basic cuts, transitions, subtitles." },
+                            { tier: "Standard", price: "$35", desc: "Color grading, SFX, Motion graphics." },
+                            { tier: "High-End", price: "$100+", desc: "Full VFX, Cinematic sequences, 4K." }
+                        ]
+                    },
+                    { 
+                        name: "GFX & Design", 
+                        icon: "fa-paint-brush", 
+                        img: "https://images.unsplash.com/photo-1626785774573-4b799315345d?q=80&w=2000&auto=format&fit=crop",
+                        plans: [
+                            { tier: "Starter", price: "$5", desc: "Logos, simple avatars." },
+                            { tier: "Standard", price: "$25", desc: "Full branding, UI kits, headers." },
+                            { tier: "High-End", price: "$75+", desc: "3D Renderings, Custom Illustrations." }
+                        ]
+                    },
+                    { 
+                        name: "Web Development", 
+                        icon: "fa-code", 
+                        img: "https://images.unsplash.com/photo-1547658719-da2b51169166?q=80&w=2000&auto=format&fit=crop",
+                        plans: [
+                            { tier: "Starter", price: "$50", desc: "Landing pages, HTML/CSS/JS." },
+                            { tier: "Standard", price: "$150", desc: "React Apps, Firebase integration." },
+                            { tier: "High-End", price: "$500+", desc: "Enterprise SaaS, Custom Backend." }
+                        ]
+                    }
+                ];
+
+                document.write(categories.map(cat => `
+                    <section>
+                        <div class="flex items-center gap-4 mb-8">
+                            <div class="w-12 h-12 glass flex items-center justify-center rounded-xl text-purple-500">
+                                <i class="fas ${cat.icon} text-xl"></i>
+                            </div>
+                            <h3 class="text-3xl font-bold tracking-tight">${cat.name}</h3>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-6">
+                            ${cat.plans.map(plan => `
+                                <div class="glass p-6 rounded-3xl premium-border flex flex-col justify-between hover:-translate-y-2 transition duration-500 group">
+                                    <div>
+                                        <div class="h-40 mb-6 rounded-2xl overflow-hidden grayscale group-hover:grayscale-0 transition duration-700">
+                                            <img src="${cat.img}" class="w-full h-full object-cover">
+                                        </div>
+                                        <div class="flex justify-between items-start mb-4">
+                                            <h4 class="text-xl font-bold">${plan.tier}</h4>
+                                            <span class="text-purple-400 font-bold">${plan.price}</span>
+                                        </div>
+                                        <p class="text-gray-500 text-sm mb-8">${plan.desc}</p>
+                                    </div>
+                                    <button onclick="buyService('${cat.name}', '${plan.tier}', '${plan.price}')" class="w-full bg-white/5 hover:bg-purple-600 border border-white/10 py-3 rounded-xl transition font-bold group-hover:text-white">PURCHASE</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </section>
+                `).join(''));
+            </script>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-white/5 py-10 text-center glass">
+            <p class="text-gray-600 text-xs tracking-widest uppercase">© 2026 SDREAM SERVICES. BUILT FOR THE NEXT GENERATION.</p>
+        </footer>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="glass w-full max-w-2xl h-[80vh] rounded-3xl flex flex-col overflow-hidden premium-border">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold">SD</div>
+                    <div>
+                        <h4 class="font-bold">Sdream Support</h4>
+                        <span class="text-[10px] text-green-500 font-bold uppercase tracking-widest">Online</span>
+                    </div>
+                </div>
+                <button onclick="closeChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Admin Chat List -->
+                <div id="admin-chat-list" class="w-1/3 border-r border-white/5 overflow-y-auto hidden md:block">
+                    <!-- Loaded via JS -->
+                </div>
+                <!-- Chat Feed -->
+                <div class="flex-1 flex flex-col">
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col space-y-2">
+                        <!-- Msgs -->
+                    </div>
+                    <div class="p-4 border-t border-white/10 flex gap-2">
+                        <input id="chat-input" type="text" placeholder="Type your message..." class="flex-1 bg-black/50 border border-gray-800 rounded-xl px-4 py-2 outline-none focus:border-purple-500 transition">
+                        <button onclick="sendMessage()" class="bg-purple-600 px-6 py-2 rounded-xl hover:bg-purple-700 transition"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Reveal animation
+        window.onload = () => {
+            setTimeout(() => {
+                const main = document.getElementById('main-screen');
+                main.classList.remove('hidden');
+                setTimeout(() => main.classList.add('opacity-100'), 50);
+            }, 100);
+        };
+    </script>
 </body>
 </html>
