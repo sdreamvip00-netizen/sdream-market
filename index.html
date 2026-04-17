@@ -1,421 +1,867 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDREAM SERVICES | PREMIUM DEVELOPER HUB</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://kit.fontawesome.com/d9f0e1897c.js" crossorigin="anonymous"></script>
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sdream — Premium Developer Services</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080809;
+    --bg2: #0e0e10;
+    --bg3: #141416;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.15);
+    --accent: #7c5cfc;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(124,92,252,0.35);
+    --text: #f0f0f0;
+    --muted: #6b6b7b;
+    --muted2: #9999aa;
+    --green: #22c55e;
+    --red: #ef4444;
+    --gold: #f59e0b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Syne',sans-serif;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
 
-        // -- sdreamvip0
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sdream-services-hub';
+  /* ── BG GIF ── */
+  .bg-gif{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    z-index:0;pointer-events:none;
+  }
+  .bg-gif img{
+    width:100%;height:100%;object-fit:cover;
+    filter:blur(8px) brightness(0.18) saturate(1.4);
+    animation:gifLoop 0.01s infinite;
+  }
+  @keyframes gifLoop{from{opacity:1}to{opacity:1}}
+  .bg-overlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:linear-gradient(135deg,rgba(8,8,9,0.85) 0%,rgba(14,14,16,0.75) 100%);
+    z-index:1;pointer-events:none;
+  }
 
-        // State
-        let user = null;
-        let activeChatId = null;
+  /* ── LAYOUT ── */
+  #app{position:relative;z-index:2}
+  .page{display:none;min-height:100vh}
+  .page.active{display:block}
 
-        // UI Refs
-        const authScreen = document.getElementById('auth-screen');
-        const mainScreen = document.getElementById('main-screen');
-        const chatModal = document.getElementById('chat-modal');
-        const chatMessages = document.getElementById('chat-messages');
-        const adminPanel = document.getElementById('admin-panel');
-        const adminList = document.getElementById('admin-chat-list');
+  /* ── NAV ── */
+  nav{
+    position:sticky;top:0;z-index:100;
+    background:rgba(8,8,9,0.85);
+    backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--border);
+    padding:0 2rem;
+    display:flex;align-items:center;justify-content:space-between;
+    height:60px;
+  }
+  .nav-logo{
+    font-size:1.25rem;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(135deg,#fff 0%,var(--accent2) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    cursor:pointer;
+  }
+  .nav-logo span{color:var(--accent);-webkit-text-fill-color:var(--accent)}
+  .nav-right{display:flex;gap:0.75rem;align-items:center}
+  .btn{
+    padding:0.5rem 1.1rem;border-radius:6px;border:none;cursor:pointer;
+    font-family:'Syne',sans-serif;font-weight:600;font-size:0.85rem;
+    transition:all 0.2s;letter-spacing:0.01em;
+  }
+  .btn-ghost{
+    background:transparent;color:var(--muted2);
+    border:1px solid var(--border);
+  }
+  .btn-ghost:hover{border-color:var(--border-bright);color:var(--text)}
+  .btn-primary{
+    background:var(--accent);color:#fff;
+    box-shadow:0 0 20px var(--accent-glow);
+  }
+  .btn-primary:hover{background:#9b7dff;box-shadow:0 0 28px var(--accent-glow)}
+  .btn-danger{background:var(--red);color:#fff}
+  .btn-danger:hover{background:#dc2626}
+  .btn-sm{padding:0.35rem 0.8rem;font-size:0.78rem}
 
-        // Auth Logic
-        async function initAuth() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
-            }
-        }
+  .nav-user{
+    display:flex;align-items:center;gap:0.75rem;
+    font-size:0.85rem;color:var(--muted2);
+  }
+  .nav-avatar{
+    width:32px;height:32px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:0.75rem;color:#fff;
+    text-transform:uppercase;
+  }
 
-        onAuthStateChanged(auth, async (u) => {
-            user = u;
-            if (user) {
-                // Check if admin
-                const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'));
-                const profile = userDoc.data();
-                
-                if (profile?.username === 'sdreamvip') {
-                    adminPanel.classList.remove('hidden');
-                    loadAdminChats();
-                }
-                
-                authScreen.classList.add('hidden');
-                mainScreen.classList.remove('hidden');
-                document.getElementById('display-user').innerText = profile?.username || 'Guest';
-            }
-        });
+  /* ── HERO ── */
+  .hero{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:calc(100vh - 60px);text-align:center;padding:4rem 2rem 6rem;
+  }
+  .hero-tag{
+    display:inline-flex;align-items:center;gap:0.5rem;
+    background:rgba(124,92,252,0.1);border:1px solid rgba(124,92,252,0.3);
+    color:var(--accent2);padding:0.35rem 0.9rem;border-radius:999px;
+    font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+    margin-bottom:2rem;
+  }
+  .hero-tag::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+  .hero h1{
+    font-size:clamp(3rem,8vw,6.5rem);font-weight:800;line-height:0.95;
+    letter-spacing:-0.04em;margin-bottom:1.5rem;
+  }
+  .hero h1 .line1{display:block;color:#fff}
+  .hero h1 .line2{
+    display:block;
+    background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 50%,#e879f9 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .hero-sub{
+    max-width:540px;color:var(--muted2);line-height:1.7;
+    font-size:1.05rem;margin-bottom:2.5rem;font-weight:400;
+  }
+  .hero-cta{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+  .hero-stats{
+    display:flex;gap:3rem;margin-top:4rem;
+    border-top:1px solid var(--border);padding-top:2.5rem;
+    flex-wrap:wrap;justify-content:center;
+  }
+  .stat{text-align:center}
+  .stat-num{font-size:2rem;font-weight:800;color:#fff}
+  .stat-lbl{font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:0.25rem}
 
-        // Register / Login Mock (Firestore based)
-        window.handleAuth = async (type) => {
-            const userInp = document.getElementById('username').value.trim();
-            const passInp = document.getElementById('password').value.trim();
-            if (!userInp || !passInp) return showNotif("Fill all fields");
+  /* ── SECTION ── */
+  section{padding:5rem 2rem}
+  .container{max-width:1100px;margin:0 auto}
+  .section-head{text-align:center;margin-bottom:3.5rem}
+  .section-tag{
+    display:inline-block;
+    font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--accent2);margin-bottom:0.75rem;
+  }
+  .section-head h2{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;letter-spacing:-0.03em}
+  .section-head p{color:var(--muted2);margin-top:0.75rem;font-size:0.95rem;max-width:500px;margin-left:auto;margin-right:auto}
 
-            if (type === 'register') {
-                // Simple unique check
-                const publicRef = doc(db, 'artifacts', appId, 'public', 'data', 'usernames', userInp);
-                const snap = await getDoc(publicRef);
-                if (snap.exists()) return showNotif("Username taken!");
+  /* ── SERVICE GRID ── */
+  .services-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:1.5rem;
+  }
+  .service-card{
+    background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+    overflow:hidden;transition:border-color 0.25s,transform 0.25s,box-shadow 0.25s;
+  }
+  .service-card:hover{
+    border-color:rgba(124,92,252,0.4);transform:translateY(-4px);
+    box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(124,92,252,0.1);
+  }
+  .card-img{
+    width:100%;height:180px;object-fit:cover;
+    filter:brightness(0.7) saturate(1.2);
+    transition:filter 0.3s;
+  }
+  .service-card:hover .card-img{filter:brightness(0.85) saturate(1.4)}
+  .card-body{padding:1.5rem}
+  .card-icon{
+    width:42px;height:42px;border-radius:10px;
+    background:rgba(124,92,252,0.15);border:1px solid rgba(124,92,252,0.25);
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.2rem;margin-bottom:1rem;
+  }
+  .card-title{font-size:1.15rem;font-weight:700;margin-bottom:0.5rem}
+  .card-desc{font-size:0.85rem;color:var(--muted2);line-height:1.6;margin-bottom:1.25rem}
+  .tiers{display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1.5rem}
+  .tier{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0.6rem 0.9rem;border-radius:8px;background:var(--bg3);
+    border:1px solid var(--border);font-size:0.82rem;
+  }
+  .tier-name{font-weight:600;display:flex;align-items:center;gap:0.5rem}
+  .tier-dot{width:7px;height:7px;border-radius:50%}
+  .tier.starter .tier-dot{background:#6ee7b7}
+  .tier.normal .tier-dot{background:var(--accent2)}
+  .tier.highend .tier-dot{background:var(--gold)}
+  .tier-price{font-family:'Space Mono',monospace;font-weight:700;color:var(--text)}
+  .tier.starter .tier-price{color:#6ee7b7}
+  .tier.normal .tier-price{color:var(--accent2)}
+  .tier.highend .tier-price{color:var(--gold)}
 
-                await initAuth();
-                const uid = auth.currentUser.uid;
-                await setDoc(doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data'), {
-                    username: userInp,
-                    password: passInp, // In real world we hash, but for this demo keeping it simple
-                    uid: uid
-                });
-                await setDoc(publicRef, { uid: uid });
-                showNotif("Registered & Logged in!");
-            } else {
-                // Login logic for demo
-                // Normally you'd search by username. Rule 2: simple queries.
-                // We'll just check if admin first
-                if (userInp === 'sdreamvip' && passInp === 'mali123098-') {
-                     await initAuth();
-                     await setDoc(doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'profile', 'data'), {
-                        username: 'sdreamvip',
-                        isAdmin: true
-                     });
-                     return;
-                }
-                showNotif("Use Register or Admin credentials.");
-            }
-        };
+  /* ── AUTH MODAL ── */
+  .modal-overlay{
+    position:fixed;inset:0;z-index:200;
+    background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;padding:1rem;
+    opacity:0;pointer-events:none;transition:opacity 0.25s;
+  }
+  .modal-overlay.open{opacity:1;pointer-events:all}
+  .modal{
+    background:var(--bg2);border:1px solid var(--border);border-radius:18px;
+    padding:2.5rem;width:100%;max-width:420px;
+    transform:translateY(20px);transition:transform 0.25s;
+    position:relative;
+  }
+  .modal-overlay.open .modal{transform:translateY(0)}
+  .modal-close{
+    position:absolute;top:1rem;right:1rem;
+    background:none;border:none;color:var(--muted);cursor:pointer;
+    font-size:1.2rem;transition:color 0.2s;
+  }
+  .modal-close:hover{color:var(--text)}
+  .modal h2{font-size:1.5rem;font-weight:800;margin-bottom:0.4rem}
+  .modal p{color:var(--muted2);font-size:0.88rem;margin-bottom:1.75rem}
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.75rem}
+  .tab{
+    padding:0.6rem 1.2rem;font-weight:600;font-size:0.88rem;cursor:pointer;
+    border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--muted);
+    transition:all 0.2s;
+  }
+  .tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
+  .form-group{margin-bottom:1rem}
+  label{display:block;font-size:0.8rem;font-weight:600;color:var(--muted2);margin-bottom:0.4rem;letter-spacing:0.04em;text-transform:uppercase}
+  input{
+    width:100%;padding:0.7rem 0.9rem;background:var(--bg3);
+    border:1px solid var(--border);border-radius:8px;
+    color:var(--text);font-family:'Syne',sans-serif;font-size:0.9rem;
+    transition:border-color 0.2s;outline:none;
+  }
+  input:focus{border-color:var(--accent)}
+  input::placeholder{color:var(--muted)}
+  .form-error{color:var(--red);font-size:0.8rem;margin-top:0.35rem;display:none}
+  .form-error.show{display:block}
+  .modal-btn{width:100%;padding:0.8rem;margin-top:0.5rem}
 
-        // Services Action
-        window.buyService = async (category, tier, price) => {
-            if (!user) return;
-            const profile = (await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'))).data();
-            const msg = `SYSTEM: User ${profile.username} wants to buy ${category} [${tier}] for ${price}`;
-            
-            const chatId = user.uid; // One chat per user for simplicity
-            activeChatId = chatId;
+  /* ── CHAT ── */
+  #chatWidget{
+    position:fixed;bottom:1.5rem;right:1.5rem;z-index:150;
+  }
+  .chat-bubble{
+    width:54px;height:54px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),#9333ea);
+    border:none;cursor:pointer;font-size:1.3rem;
+    box-shadow:0 8px 30px rgba(124,92,252,0.5);
+    transition:transform 0.2s,box-shadow 0.2s;
+    position:relative;
+  }
+  .chat-bubble:hover{transform:scale(1.1);box-shadow:0 12px 40px rgba(124,92,252,0.7)}
+  .chat-notif{
+    position:absolute;top:-2px;right:-2px;width:16px;height:16px;
+    background:var(--red);border-radius:50%;border:2px solid var(--bg);
+    font-size:0.6rem;color:#fff;display:flex;align-items:center;justify-content:center;
+    font-weight:700;
+  }
+  .chat-window{
+    position:absolute;bottom:70px;right:0;
+    width:360px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:18px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,0.6);
+    transform:scale(0.9) translateY(20px);transform-origin:bottom right;
+    opacity:0;pointer-events:none;transition:all 0.25s;
+  }
+  .chat-window.open{opacity:1;pointer-events:all;transform:scale(1) translateY(0)}
+  .chat-header{
+    background:linear-gradient(135deg,rgba(124,92,252,0.2),rgba(147,51,234,0.15));
+    border-bottom:1px solid var(--border);
+    padding:1rem 1.25rem;
+    display:flex;align-items:center;gap:0.75rem;
+  }
+  .chat-av{
+    width:38px;height:38px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),#9333ea);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:0.85rem;flex-shrink:0;
+  }
+  .chat-title{font-weight:700;font-size:0.92rem}
+  .chat-status{font-size:0.72rem;color:var(--green);display:flex;align-items:center;gap:0.3rem}
+  .chat-status::before{content:'';width:6px;height:6px;background:var(--green);border-radius:50%}
+  .chat-messages{height:280px;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.75rem}
+  .chat-messages::-webkit-scrollbar{width:4px}
+  .chat-messages::-webkit-scrollbar-track{background:transparent}
+  .chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  .msg{max-width:80%;display:flex;flex-direction:column;gap:0.2rem}
+  .msg.admin{align-self:flex-start}
+  .msg.user{align-self:flex-end}
+  .msg-bubble{
+    padding:0.6rem 0.9rem;border-radius:12px;font-size:0.83rem;line-height:1.5;
+  }
+  .msg.admin .msg-bubble{background:var(--bg3);border:1px solid var(--border);border-bottom-left-radius:4px}
+  .msg.user .msg-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .msg-time{font-size:0.68rem;color:var(--muted);font-family:'Space Mono',monospace}
+  .msg.user .msg-time{text-align:right}
+  .chat-input-area{
+    padding:0.75rem;border-top:1px solid var(--border);
+    display:flex;gap:0.5rem;
+  }
+  .chat-input{
+    flex:1;padding:0.55rem 0.8rem;background:var(--bg3);
+    border:1px solid var(--border);border-radius:8px;
+    color:var(--text);font-family:'Syne',sans-serif;font-size:0.82rem;
+    outline:none;resize:none;height:38px;
+  }
+  .chat-input:focus{border-color:var(--accent)}
+  .chat-send{
+    padding:0.55rem 0.9rem;background:var(--accent);color:#fff;border:none;
+    border-radius:8px;cursor:pointer;font-size:0.85rem;transition:background 0.2s;
+  }
+  .chat-send:hover{background:#9b7dff}
+  .chat-locked{
+    padding:1rem;text-align:center;color:var(--muted2);font-size:0.83rem;
+  }
+  .chat-locked strong{color:var(--accent2);cursor:pointer}
+  .chat-locked strong:hover{text-decoration:underline}
 
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', chatId, 'messages'), {
-                text: msg,
-                sender: 'SYSTEM',
-                timestamp: serverTimestamp()
-            });
+  /* ── FOOTER ── */
+  footer{
+    border-top:1px solid var(--border);padding:2rem;text-align:center;
+    color:var(--muted);font-size:0.8rem;
+  }
+  footer span{color:var(--accent2)}
 
-            // Mark chat as active in public registry for admin
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'active_chats', chatId), {
-                username: profile.username,
-                lastUpdate: serverTimestamp()
-            });
+  /* ── TOAST ── */
+  #toast{
+    position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+    padding:0.75rem 1.5rem;font-size:0.85rem;z-index:999;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+    transition:transform 0.3s,opacity 0.3s;opacity:0;
+    display:flex;align-items:center;gap:0.6rem;
+  }
+  #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  #toast .toast-icon{font-size:1rem}
 
-            openChat(chatId);
-        };
+  /* ── PURCHASE MODAL ── */
+  #purchaseModal .modal{max-width:460px}
+  .purchase-info{
+    background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+    padding:1rem;margin-bottom:1.5rem;font-size:0.88rem;
+  }
+  .purchase-info .pi-row{display:flex;justify-content:space-between;padding:0.3rem 0}
+  .purchase-info .pi-label{color:var(--muted2)}
+  .purchase-info .pi-val{font-weight:700}
+  .purchase-info .pi-val.gold{color:var(--gold)}
+  .purchase-info .pi-val.green{color:#6ee7b7}
+  .purchase-info .pi-val.purple{color:var(--accent2)}
 
-        function openChat(chatId) {
-            activeChatId = chatId;
-            chatModal.classList.remove('hidden');
-            chatMessages.innerHTML = '';
-            
-            onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'chats', chatId, 'messages')), (snap) => {
-                chatMessages.innerHTML = '';
-                const msgs = snap.docs.map(d => d.data()).sort((a,b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
-                msgs.forEach(m => {
-                    const div = document.createElement('div');
-                    div.className = `mb-2 p-2 rounded-lg max-w-[80%] ${m.sender === 'sdreamvip' ? 'bg-purple-600 ml-auto' : 'bg-gray-700'}`;
-                    div.innerHTML = `<span class="text-xs opacity-50 block">${m.sender}</span>${m.text}`;
-                    chatMessages.appendChild(div);
-                });
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, (err) => console.error(err));
-        }
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
-        window.sendMessage = async () => {
-            const inp = document.getElementById('chat-input');
-            if (!inp.value.trim() || !activeChatId) return;
-            
-            const profile = (await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'))).data();
-            
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'chats', activeChatId, 'messages'), {
-                text: inp.value,
-                sender: profile.username,
-                timestamp: serverTimestamp()
-            });
-            inp.value = '';
-        };
+  /* ── ADMIN BADGE ── */
+  .admin-badge{
+    background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);
+    color:var(--gold);font-size:0.7rem;font-weight:700;letter-spacing:0.08em;
+    text-transform:uppercase;padding:0.2rem 0.5rem;border-radius:4px;
+  }
 
-        function loadAdminChats() {
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'active_chats'), (snap) => {
-                adminList.innerHTML = '';
-                snap.forEach(docSnap => {
-                    const data = docSnap.data();
-                    const btn = document.createElement('button');
-                    btn.className = "w-full text-left p-3 hover:bg-purple-900/30 border-b border-gray-800 transition";
-                    btn.innerHTML = `<i class="fas fa-user-circle mr-2"></i> ${data.username}`;
-                    btn.onclick = () => openChat(docSnap.id);
-                    adminList.appendChild(btn);
-                });
-            });
-        }
-
-        function showNotif(txt) {
-            const n = document.getElementById('notif');
-            n.innerText = txt;
-            n.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => n.classList.add('translate-y-20', 'opacity-0'), 3000);
-        }
-
-        window.closeChat = () => chatModal.classList.add('hidden');
-    </script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600;700&display=swap');
-        
-        body {
-            font-family: 'Space Grotesk', sans-serif;
-            background-color: #050505;
-            color: #e0e0e0;
-            overflow-x: hidden;
-        }
-
-        .bg-gif {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            background: url('gif1.gif') center/cover no-repeat;
-            filter: blur(40px) brightness(0.3);
-            transform: scale(1.1);
-        }
-
-        .glass {
-            background: rgba(15, 15, 15, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .premium-border {
-            position: relative;
-        }
-        .premium-border::after {
-            content: '';
-            position: absolute;
-            inset: -1px;
-            background: linear-gradient(45deg, transparent, #8b5cf6, transparent);
-            z-index: -1;
-            border-radius: inherit;
-            opacity: 0.3;
-        }
-
-        .glow-text {
-            text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
-        }
-
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: #050505; }
-        ::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 10px; }
-    </style>
+  /* ── RESPONSIVE ── */
+  @media(max-width:600px){
+    .chat-window{width:calc(100vw - 2rem);right:-0.5rem}
+    .hero-stats{gap:1.5rem}
+  }
+</style>
 </head>
-<body class="min-h-screen">
+<body>
 
-    <div class="bg-gif"></div>
+<!-- BG -->
+<div class="bg-gif">
+  <img src="gif1.gif" alt="" id="bgGif">
+</div>
+<div class="bg-overlay"></div>
 
-    <!-- Notification -->
-    <div id="notif" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-6 py-2 rounded-full glass transition-all duration-500 opacity-0 translate-y-20 z-[100]"></div>
+<div id="app">
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo" onclick="scrollToTop()">s<span>dream</span></div>
+    <div class="nav-right" id="navRight">
+      <button class="btn btn-ghost" onclick="openModal('login')">Sign In</button>
+      <button class="btn btn-primary" onclick="openModal('register')">Join Now</button>
+    </div>
+  </nav>
 
-    <!-- Auth Screen -->
-    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div class="glass p-8 rounded-3xl w-full max-w-md premium-border text-center">
-            <h1 class="text-4xl font-bold mb-2 tracking-tighter glow-text">SDREAM</h1>
-            <p class="text-gray-400 mb-8 text-sm">ACCESS THE ELITE SERVICES</p>
-            
-            <div class="space-y-4">
-                <div class="relative">
-                    <i class="fas fa-user absolute left-4 top-4 text-gray-500"></i>
-                    <input id="username" type="text" placeholder="Username" class="w-full bg-black/50 border border-gray-800 rounded-xl py-3 pl-12 pr-4 focus:border-purple-500 outline-none transition">
-                </div>
-                <div class="relative">
-                    <i class="fas fa-lock absolute left-4 top-4 text-gray-500"></i>
-                    <input id="password" type="password" placeholder="Password" class="w-full bg-black/50 border border-gray-800 rounded-xl py-3 pl-12 pr-4 focus:border-purple-500 outline-none transition">
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="handleAuth('login')" class="flex-1 bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition active:scale-95">LOGIN</button>
-                    <button onclick="handleAuth('register')" class="flex-1 border border-gray-700 font-bold py-3 rounded-xl hover:bg-gray-800 transition active:scale-95">REGISTER</button>
-                </div>
-            </div>
-            <p class="mt-6 text-xs text-gray-500">BY ACCESSING YOU AGREE TO OUR TERMS OF SERVICE.</p>
+  <!-- MAIN PAGE -->
+  <div id="mainPage" class="page active">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-tag">✦ Premium Dev Services</div>
+      <h1>
+        <span class="line1">Build something</span>
+        <span class="line2">extraordinary.</span>
+      </h1>
+      <p class="hero-sub">Top-tier Roblox development, GFX, video editing, web design & more. Handcrafted by professionals who actually care about quality.</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">Browse Services</button>
+        <button class="btn btn-ghost" onclick="openModal('register')">Create Account</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><div class="stat-num">200+</div><div class="stat-lbl">Projects Delivered</div></div>
+        <div class="stat"><div class="stat-num">98%</div><div class="stat-lbl">Client Satisfaction</div></div>
+        <div class="stat"><div class="stat-num">4.9★</div><div class="stat-lbl">Average Rating</div></div>
+        <div class="stat"><div class="stat-num">24h</div><div class="stat-lbl">Response Time</div></div>
+      </div>
+    </div>
+
+    <!-- SERVICES -->
+    <section id="services">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-tag">// what we build</div>
+          <h2>Our Services</h2>
+          <p>Every tier is crafted with precision. Pick what fits your budget — we deliver regardless.</p>
         </div>
+        <div class="services-grid" id="servicesGrid"></div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+      <p>© 2025 <span>sdream</span> — All rights reserved. Built with obsession.</p>
+    </footer>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+    <h2 id="authTitle">Welcome back</h2>
+    <p id="authSub">Sign in to access sdream services.</p>
+    <div class="tabs">
+      <div class="tab active" id="tabLogin" onclick="switchTab('login')">Sign In</div>
+      <div class="tab" id="tabRegister" onclick="switchTab('register')">Register</div>
     </div>
 
-    <!-- Main Screen -->
-    <div id="main-screen" class="hidden opacity-0 transition-opacity duration-1000">
-        <!-- Navbar -->
-        <nav class="fixed top-0 w-full glass z-40 border-b border-white/5">
-            <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-                <div class="text-2xl font-bold tracking-tighter">SDREAM<span class="text-purple-500">.</span></div>
-                <div class="flex items-center gap-6">
-                    <div id="admin-panel" class="hidden">
-                        <span class="bg-red-500/20 text-red-400 text-[10px] px-2 py-1 rounded-md border border-red-500/30 uppercase font-bold">Admin Panel</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm text-gray-300">
-                        <i class="fas fa-circle text-[8px] text-green-500 animate-pulse"></i>
-                        <span id="display-user">Guest</span>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <header class="pt-32 pb-20 px-6 text-center">
-            <h2 class="text-6xl md:text-8xl font-bold tracking-tighter mb-4 glow-text uppercase">Elevate your <br><span class="text-purple-600">Experience</span></h2>
-            <p class="max-w-2xl mx-auto text-gray-400 text-lg">Premium digital solutions for Discord, Roblox, and Web. Engineered for those who seek perfection.</p>
-        </header>
-
-        <!-- Services Grid -->
-        <main class="max-w-7xl mx-auto px-6 pb-20 space-y-24">
-            
-            <!-- Category Builder -->
-            <script>
-                const categories = [
-                    { 
-                        name: "Bot Development", 
-                        icon: "fa-robot", 
-                        img: "https://images.unsplash.com/photo-1527430253228-e92688449a71?q=80&w=2000&auto=format&fit=crop",
-                        plans: [
-                            { tier: "Starter", price: "$15", desc: "Basic commands, simple logic." },
-                            { tier: "Standard", price: "$45", desc: "Database, API Integration, Dashboard." },
-                            { tier: "High-End", price: "$120+", desc: "Complex systems, 24/7 Hosting, Custom API." }
-                        ]
-                    },
-                    { 
-                        name: "Roblox Scripting", 
-                        icon: "fa-cube", 
-                        img: "https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?q=80&w=2000&auto=format&fit=crop",
-                        plans: [
-                            { tier: "Starter", price: "$20", desc: "Small systems, tools, UI scripts." },
-                            { tier: "Standard", price: "$60", desc: "Game loops, shop systems, data stores." },
-                            { tier: "High-End", price: "$200+", desc: "Full Frameworks, Anti-Cheat, Physics." }
-                        ]
-                    },
-                    { 
-                        name: "Video Editing", 
-                        icon: "fa-film", 
-                        img: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?q=80&w=2000&auto=format&fit=crop",
-                        plans: [
-                            { tier: "Starter", price: "$10", desc: "Basic cuts, transitions, subtitles." },
-                            { tier: "Standard", price: "$35", desc: "Color grading, SFX, Motion graphics." },
-                            { tier: "High-End", price: "$100+", desc: "Full VFX, Cinematic sequences, 4K." }
-                        ]
-                    },
-                    { 
-                        name: "GFX & Design", 
-                        icon: "fa-paint-brush", 
-                        img: "https://images.unsplash.com/photo-1626785774573-4b799315345d?q=80&w=2000&auto=format&fit=crop",
-                        plans: [
-                            { tier: "Starter", price: "$5", desc: "Logos, simple avatars." },
-                            { tier: "Standard", price: "$25", desc: "Full branding, UI kits, headers." },
-                            { tier: "High-End", price: "$75+", desc: "3D Renderings, Custom Illustrations." }
-                        ]
-                    },
-                    { 
-                        name: "Web Development", 
-                        icon: "fa-code", 
-                        img: "https://images.unsplash.com/photo-1547658719-da2b51169166?q=80&w=2000&auto=format&fit=crop",
-                        plans: [
-                            { tier: "Starter", price: "$50", desc: "Landing pages, HTML/CSS/JS." },
-                            { tier: "Standard", price: "$150", desc: "React Apps, Firebase integration." },
-                            { tier: "High-End", price: "$500+", desc: "Enterprise SaaS, Custom Backend." }
-                        ]
-                    }
-                ];
-
-                document.write(categories.map(cat => `
-                    <section>
-                        <div class="flex items-center gap-4 mb-8">
-                            <div class="w-12 h-12 glass flex items-center justify-center rounded-xl text-purple-500">
-                                <i class="fas ${cat.icon} text-xl"></i>
-                            </div>
-                            <h3 class="text-3xl font-bold tracking-tight">${cat.name}</h3>
-                        </div>
-                        <div class="grid md:grid-cols-3 gap-6">
-                            ${cat.plans.map(plan => `
-                                <div class="glass p-6 rounded-3xl premium-border flex flex-col justify-between hover:-translate-y-2 transition duration-500 group">
-                                    <div>
-                                        <div class="h-40 mb-6 rounded-2xl overflow-hidden grayscale group-hover:grayscale-0 transition duration-700">
-                                            <img src="${cat.img}" class="w-full h-full object-cover">
-                                        </div>
-                                        <div class="flex justify-between items-start mb-4">
-                                            <h4 class="text-xl font-bold">${plan.tier}</h4>
-                                            <span class="text-purple-400 font-bold">${plan.price}</span>
-                                        </div>
-                                        <p class="text-gray-500 text-sm mb-8">${plan.desc}</p>
-                                    </div>
-                                    <button onclick="buyService('${cat.name}', '${plan.tier}', '${plan.price}')" class="w-full bg-white/5 hover:bg-purple-600 border border-white/10 py-3 rounded-xl transition font-bold group-hover:text-white">PURCHASE</button>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </section>
-                `).join(''));
-            </script>
-
-        </main>
-
-        <!-- Footer -->
-        <footer class="border-t border-white/5 py-10 text-center glass">
-            <p class="text-gray-600 text-xs tracking-widest uppercase">© 2026 SDREAM SERVICES. BUILT FOR THE NEXT GENERATION.</p>
-        </footer>
+    <!-- LOGIN -->
+    <div id="formLogin">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUser" placeholder="your username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="form-error" id="loginErr"></div>
+      <button class="btn btn-primary modal-btn" onclick="doLogin()">Sign In</button>
     </div>
 
-    <!-- Chat Modal -->
-    <div id="chat-modal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
-        <div class="glass w-full max-w-2xl h-[80vh] rounded-3xl flex flex-col overflow-hidden premium-border">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center font-bold">SD</div>
-                    <div>
-                        <h4 class="font-bold">Sdream Support</h4>
-                        <span class="text-[10px] text-green-500 font-bold uppercase tracking-widest">Online</span>
-                    </div>
-                </div>
-                <button onclick="closeChat()" class="text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            
-            <div class="flex flex-1 overflow-hidden">
-                <!-- Admin Chat List -->
-                <div id="admin-chat-list" class="w-1/3 border-r border-white/5 overflow-y-auto hidden md:block">
-                    <!-- Loaded via JS -->
-                </div>
-                <!-- Chat Feed -->
-                <div class="flex-1 flex flex-col">
-                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col space-y-2">
-                        <!-- Msgs -->
-                    </div>
-                    <div class="p-4 border-t border-white/10 flex gap-2">
-                        <input id="chat-input" type="text" placeholder="Type your message..." class="flex-1 bg-black/50 border border-gray-800 rounded-xl px-4 py-2 outline-none focus:border-purple-500 transition">
-                        <button onclick="sendMessage()" class="bg-purple-600 px-6 py-2 rounded-xl hover:bg-purple-700 transition"><i class="fas fa-paper-plane"></i></button>
-                    </div>
-                </div>
-            </div>
+    <!-- REGISTER -->
+    <div id="formRegister" style="display:none">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="regUser" placeholder="choose a username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPass" placeholder="min 6 characters" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="regPass2" placeholder="repeat password" autocomplete="new-password">
+      </div>
+      <div class="form-error" id="regErr"></div>
+      <button class="btn btn-primary modal-btn" onclick="doRegister()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- PURCHASE MODAL -->
+<div class="modal-overlay" id="purchaseModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('purchaseModal')">✕</button>
+    <h2>Purchase Service</h2>
+    <p>Review your selection and proceed to contact.</p>
+    <div class="purchase-info" id="purchaseInfo"></div>
+    <p style="font-size:0.83rem;color:var(--muted2);margin-bottom:1rem">After clicking confirm, a chat session will open with our team. We'll get back to you ASAP.</p>
+    <button class="btn btn-primary modal-btn" onclick="confirmPurchase()">Confirm & Open Chat ↗</button>
+  </div>
+</div>
+
+<!-- CHAT WIDGET -->
+<div id="chatWidget">
+  <div class="chat-window" id="chatWindow">
+    <div class="chat-header">
+      <div class="chat-av">SD</div>
+      <div>
+        <div class="chat-title">sdream support</div>
+        <div class="chat-status">online</div>
+      </div>
+      <button onclick="toggleChat()" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem">✕</button>
+    </div>
+    <div id="chatBody">
+      <div class="chat-locked" id="chatLocked">
+        <p>🔒 You need to be logged in to chat.<br><br><strong onclick="openModal('login')">Sign in</strong> or <strong onclick="openModal('register')">create an account</strong> to start.</p>
+      </div>
+      <div id="chatActive" style="display:none">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="chatInput" placeholder="Type a message..." onkeydown="chatKeydown(event)"></textarea>
+          <button class="chat-send" onclick="sendMessage()">↑</button>
         </div>
+      </div>
     </div>
+  </div>
+  <button class="chat-bubble" onclick="toggleChat()" title="Chat with us">💬<div class="chat-notif" id="chatNotif" style="display:none">1</div></button>
+</div>
 
-    <script>
-        // Reveal animation
-        window.onload = () => {
-            setTimeout(() => {
-                const main = document.getElementById('main-screen');
-                main.classList.remove('hidden');
-                setTimeout(() => main.classList.add('opacity-100'), 50);
-            }, 100);
-        };
-    </script>
+<div id="toast"><span class="toast-icon" id="toastIcon"></span><span id="toastMsg"></span></div>
+
+<script>
+// ── DATA ──
+const SERVICES = [
+  {
+    id:'roblox-dev',
+    title:'Roblox Development',
+    icon:'🎮',
+    desc:'Scripts, systems, full games. From simple tools to complex MMO backends. Luau done right.',
+    img:'https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?w=600&q=80',
+    tiers:[
+      {name:'Starter',cls:'starter',price:'$5–$15',desc:'Simple scripts, basic UI, small tools'},
+      {name:'Standard',cls:'normal',price:'$20–$60',desc:'Game systems, advanced scripting'},
+      {name:'High-End',cls:'highend',price:'$80–$300+',desc:'Full games, complex systems, frameworks'},
+    ]
+  },
+  {
+    id:'bot-dev',
+    title:'Bot Development',
+    icon:'🤖',
+    desc:'Discord bots, Telegram bots, automation scripts. Whether you need a moderation bot or full dashboard.',
+    img:'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=600&q=80',
+    tiers:[
+      {name:'Starter',cls:'starter',price:'$8–$20',desc:'Basic commands, simple responses'},
+      {name:'Standard',cls:'normal',price:'$25–$70',desc:'Dashboard, DB, advanced features'},
+      {name:'High-End',cls:'highend',price:'$100–$400+',desc:'Full bots, web panel, custom APIs'},
+    ]
+  },
+  {
+    id:'video-edit',
+    title:'Video Editing',
+    icon:'🎬',
+    desc:'Cinematic edits, Roblox montages, YouTube content. Fast delivery, fire results.',
+    img:'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&q=80',
+    tiers:[
+      {name:'Starter',cls:'starter',price:'$5–$12',desc:'Basic cuts, simple effects'},
+      {name:'Standard',cls:'normal',price:'$15–$40',desc:'Color grade, motion graphics'},
+      {name:'High-End',cls:'highend',price:'$50–$150+',desc:'Cinematic, VFX, full production'},
+    ]
+  },
+  {
+    id:'gfx',
+    title:'GFX Design',
+    icon:'🖼️',
+    desc:'Roblox renders, thumbnails, posters. High quality 3D GFX that makes your game stand out.',
+    img:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+    tiers:[
+      {name:'Starter',cls:'starter',price:'$4–$10',desc:'Simple renders, basic lighting'},
+      {name:'Standard',cls:'normal',price:'$12–$35',desc:'Complex scenes, custom backgrounds'},
+      {name:'High-End',cls:'highend',price:'$40–$120+',desc:'Cinematic renders, full art direction'},
+    ]
+  },
+  {
+    id:'web-design',
+    title:'Web Design',
+    icon:'🌐',
+    desc:'Landing pages, portfolios, full web apps. Clean code, premium aesthetics — just like this site.',
+    img:'https://images.unsplash.com/photo-1547658719-da2b51169166?w=600&q=80',
+    tiers:[
+      {name:'Starter',cls:'starter',price:'$10–$25',desc:'Landing page, static site'},
+      {name:'Standard',cls:'normal',price:'$30–$100',desc:'Multi-page, animations, CMS'},
+      {name:'High-End',cls:'highend',price:'$150–$600+',desc:'Full stack app, custom backend'},
+    ]
+  },
+  {
+    id:'logo-design',
+    title:'Logo & Branding',
+    icon:'✦',
+    desc:'Brand identities, logos, icons. From minimalist marks to full brand kits.',
+    img:'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&q=80',
+    tiers:[
+      {name:'Starter',cls:'starter',price:'$5–$15',desc:'Simple logo, 2 revisions'},
+      {name:'Standard',cls:'normal',price:'$20–$50',desc:'Logo + variants, brand colors'},
+      {name:'High-End',cls:'highend',price:'$60–$200+',desc:'Full brand kit, style guide'},
+    ]
+  },
+];
+
+// ── STATE ──
+let users = JSON.parse(localStorage.getItem('sdream_users')||'{}');
+// admin always present
+users['sdreamvip'] = users['sdreamvip'] || {password:'mali123098-',isAdmin:true};
+saveUsers();
+
+let currentUser = JSON.parse(localStorage.getItem('sdream_session')||'null');
+let chatMessages = JSON.parse(localStorage.getItem('sdream_chat')||'[]');
+let pendingPurchase = null;
+let chatOpen = false;
+
+function saveUsers(){localStorage.setItem('sdream_users',JSON.stringify(users))}
+
+// ── RENDER NAV ──
+function renderNav(){
+  const nr = document.getElementById('navRight');
+  if(!currentUser){
+    nr.innerHTML=`<button class="btn btn-ghost" onclick="openModal('login')">Sign In</button><button class="btn btn-primary" onclick="openModal('register')">Join Now</button>`;
+  } else {
+    const isAdmin = users[currentUser]?.isAdmin;
+    nr.innerHTML=`
+      <div class="nav-user">
+        <div class="nav-avatar">${currentUser[0]}</div>
+        <span>${currentUser}</span>
+        ${isAdmin?'<span class="admin-badge">admin</span>':''}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+    `;
+  }
+}
+
+// ── RENDER SERVICES ──
+function renderServices(){
+  const grid = document.getElementById('servicesGrid');
+  grid.innerHTML = SERVICES.map(s=>`
+    <div class="service-card">
+      <img class="card-img" src="${s.img}" alt="${s.title}" loading="lazy">
+      <div class="card-body">
+        <div class="card-icon">${s.icon}</div>
+        <div class="card-title">${s.title}</div>
+        <div class="card-desc">${s.desc}</div>
+        <div class="tiers">
+          ${s.tiers.map(t=>`
+            <div class="tier ${t.cls}" title="${t.desc}">
+              <span class="tier-name"><span class="tier-dot"></span>${t.name}</span>
+              <span class="tier-price">${t.price}</span>
+            </div>
+          `).join('')}
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="buyService('${s.id}')">Purchase →</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── AUTH ──
+function openModal(tab){
+  document.getElementById('authModal').classList.add('open');
+  switchTab(tab||'login');
+}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+function switchTab(tab){
+  const isLogin = tab==='login';
+  document.getElementById('tabLogin').classList.toggle('active',isLogin);
+  document.getElementById('tabRegister').classList.toggle('active',!isLogin);
+  document.getElementById('formLogin').style.display = isLogin?'block':'none';
+  document.getElementById('formRegister').style.display = isLogin?'none':'block';
+  document.getElementById('authTitle').textContent = isLogin?'Welcome back':'Create account';
+  document.getElementById('authSub').textContent = isLogin?'Sign in to access sdream services.':'Join sdream — it\'s free.';
+  clearErrors();
+}
+
+function clearErrors(){
+  ['loginErr','regErr'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.textContent='';el.classList.remove('show');
+  });
+}
+
+function showErr(id,msg){
+  const el=document.getElementById(id);
+  el.textContent=msg;el.classList.add('show');
+}
+
+function doLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(!user||!pass){showErr('loginErr','Fill all fields.');return}
+  if(!users[user]){showErr('loginErr','User not found.');return}
+  if(users[user].password!==pass){showErr('loginErr','Wrong password.');return}
+  currentUser=user;
+  localStorage.setItem('sdream_session',JSON.stringify(user));
+  closeModal('authModal');
+  renderNav();
+  renderChat();
+  toast('✓','Logged in as '+user);
+}
+
+function doRegister(){
+  const user = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  if(!user||!pass||!pass2){showErr('regErr','Fill all fields.');return}
+  if(user.length<3){showErr('regErr','Username must be 3+ characters.');return}
+  if(/\s/.test(user)){showErr('regErr','No spaces in username.');return}
+  if(users[user]){showErr('regErr','Username already taken.');return}
+  if(pass.length<6){showErr('regErr','Password must be 6+ characters.');return}
+  if(pass!==pass2){showErr('regErr','Passwords don\'t match.');return}
+  users[user]={password:pass,isAdmin:false};
+  saveUsers();
+  currentUser=user;
+  localStorage.setItem('sdream_session',JSON.stringify(user));
+  closeModal('authModal');
+  renderNav();
+  renderChat();
+  toast('🎉','Account created! Welcome, '+user);
+}
+
+function logout(){
+  currentUser=null;
+  localStorage.removeItem('sdream_session');
+  renderNav();
+  renderChat();
+  toast('👋','Logged out.');
+}
+
+// ── PURCHASE ──
+function buyService(id){
+  if(!currentUser){
+    toast('🔒','You need to be logged in first.');
+    openModal('login');
+    return;
+  }
+  const svc = SERVICES.find(s=>s.id===id);
+  pendingPurchase = svc;
+  const info = document.getElementById('purchaseInfo');
+  info.innerHTML=`
+    <div class="pi-row"><span class="pi-label">Service</span><span class="pi-val">${svc.title}</span></div>
+    <div class="pi-row"><span class="pi-label">Starter</span><span class="pi-val green">${svc.tiers[0].price}</span></div>
+    <div class="pi-row"><span class="pi-label">Standard</span><span class="pi-val purple">${svc.tiers[1].price}</span></div>
+    <div class="pi-row"><span class="pi-label">High-End</span><span class="pi-val gold">${svc.tiers[2].price}</span></div>
+  `;
+  document.getElementById('purchaseModal').classList.add('open');
+}
+
+function confirmPurchase(){
+  if(!pendingPurchase) return;
+  closeModal('purchaseModal');
+  const svc = pendingPurchase;
+  const autoMsg = `Hey! I'm interested in purchasing **${svc.title}**. Can we discuss the details?`;
+  addChatMsg('user', autoMsg);
+  addChatMsg('admin', `Hey ${currentUser}! 👋 Got your request for **${svc.title}**. Drop your details and we'll sort out the right tier and price for you.`);
+  saveChatMessages();
+  if(!chatOpen) toggleChat();
+  toast('✉️','Chat opened! Admin will respond shortly.');
+  pendingPurchase = null;
+}
+
+// ── CHAT ──
+function toggleChat(){
+  chatOpen=!chatOpen;
+  document.getElementById('chatWindow').classList.toggle('open',chatOpen);
+  if(chatOpen){
+    document.getElementById('chatNotif').style.display='none';
+    scrollChat();
+  }
+}
+
+function renderChat(){
+  const locked = document.getElementById('chatLocked');
+  const active = document.getElementById('chatActive');
+  if(!currentUser){
+    locked.style.display='block';
+    active.style.display='none';
+    return;
+  }
+  locked.style.display='none';
+  active.style.display='block';
+  renderChatMessages();
+}
+
+function renderChatMessages(){
+  const msgs = document.getElementById('chatMessages');
+  if(!msgs) return;
+  msgs.innerHTML = chatMessages.map(m=>`
+    <div class="msg ${m.role}">
+      <div class="msg-bubble">${escHtml(m.text).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div>
+      <div class="msg-time">${m.time}</div>
+    </div>
+  `).join('');
+  scrollChat();
+}
+
+function scrollChat(){
+  const msgs = document.getElementById('chatMessages');
+  if(msgs) msgs.scrollTop=msgs.scrollHeight;
+}
+
+function addChatMsg(role,text){
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  chatMessages.push({role,text,time});
+  renderChatMessages();
+}
+
+function saveChatMessages(){
+  localStorage.setItem('sdream_chat',JSON.stringify(chatMessages));
+}
+
+function sendMessage(){
+  if(!currentUser) return;
+  const inp = document.getElementById('chatInput');
+  const text = inp.value.trim();
+  if(!text) return;
+  inp.value='';
+
+  const isAdmin = users[currentUser]?.isAdmin;
+  addChatMsg(isAdmin?'admin':'user',text);
+  saveChatMessages();
+
+  if(!isAdmin){
+    setTimeout(()=>{
+      addChatMsg('admin','Thanks for the message! The team will review and respond shortly. 🙏');
+      saveChatMessages();
+      if(!chatOpen){
+        document.getElementById('chatNotif').style.display='flex';
+      }
+    },1200);
+  }
+}
+
+function chatKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}
+}
+
+function escHtml(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── TOAST ──
+function toast(icon,msg){
+  document.getElementById('toastIcon').textContent=icon;
+  document.getElementById('toastMsg').textContent=msg;
+  const el=document.getElementById('toast');
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── MISC ──
+function scrollToTop(){window.scrollTo({top:0,behavior:'smooth'})}
+
+// close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')});
+});
+
+// ── INIT ──
+renderServices();
+renderNav();
+renderChat();
+
+// if chat has messages and user is logged in, show notif
+if(chatMessages.length>0 && currentUser){
+  document.getElementById('chatNotif').style.display='flex';
+}
+</script>
 </body>
 </html>
